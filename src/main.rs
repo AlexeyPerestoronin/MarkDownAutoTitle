@@ -1,9 +1,11 @@
 use clap::Parser;
 use regex::Regex;
+use sha2::{Digest, Sha256};
 use std::{
+    collections::LinkedList,
     fs::OpenOptions,
-    io::{BufRead, BufReader},
-    path::Path,
+    io::{BufRead, BufReader, Write},
+    path::{Path, PathBuf},
 };
 
 #[derive(Parser, Debug)]
@@ -12,65 +14,114 @@ use std::{
     about = "Command Line Tool for auto-adding title to mark-down file"
 )]
 struct Args {
-    /// Target mark-down file for title addition
+    /// Target markdown file for title addition
     #[arg(short, long)]
     file_name: String,
 
-    /// Title message for title addition
+    /// The message which should be used as the title
     #[arg(long, default_value = "Auto-Title:")]
     title_message: String,
 
-    /// Whether to add links to navigation between titles
-    #[arg(long, default_value_t = false)]
-    with_links: bool,
+    /// Title message for title addition
+    #[arg(long, default_value_t = 4)]
+    tab_space_size: u8,
 
-    /// Whether to print information about process in console
-    #[arg(long, default_value_t = false)]
-    verbose: bool,
+    // TODO: need to implement
+    // /// Whether to add links to navigation between titles
+    // #[arg(long, default_value_t = false)]
+    // with_links: bool,
+
+    // TODO: need to implement
+    // /// Whether to detect existing title
+    // #[arg(long, default_value_t = false)]
+    // detect_existing_title: bool,
+    
+    // TODO: need to implement
+    // /// Whether to print information about process in console
+    // #[arg(long, default_value_t = false)]
+    // verbose: bool,
 }
 
 fn main() {
     let arguments = Args::parse();
 
-    let titles_info = detect_titles(Path::new(&arguments.file_name));
-    for title_info in &titles_info {
-        println!("line number: {}", title_info.line_number);
-        println!("title: {}", title_info.title);
-        println!("level: {}", title_info.level);
-    }
-
-    // println!("CLI count is {}", arguments.count);
-    println!("CLI file-name is {}", arguments.file_name);
+    detect_titles(
+        Path::new(&arguments.file_name),
+        &arguments.title_message,
+        arguments.tab_space_size,
+    );
 }
 
-struct TitleInfo {
-    line_number: usize,
-    title: String,
-    level: usize,
-}
-
-fn detect_titles(file_path: &Path) -> Vec<TitleInfo> {
-    let file = OpenOptions::new()
+fn detect_titles(file_path: &Path, title_message: &String, tab_space_size: u8) {
+    let source = OpenOptions::new()
         .read(true)
-        .write(true)
+        .write(false)
         .create(false)
         .open(file_path)
         .unwrap();
 
-    let reader = BufReader::new(file);
+    let mut target = OpenOptions::new()
+        .read(false)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(add_hash_to_filename(file_path).unwrap())
+        .unwrap();
+
+    let reader = BufReader::new(source);
     let reg_title_pattern = Regex::new(r"(?<level>#+)\s+(?<title>.+)").unwrap();
-    let mut titles_info: Vec<TitleInfo> = vec![];
-    for (line_number, line) in reader.lines().enumerate() {
-        if let Ok(line) = line {
-            if let Some(capture) = reg_title_pattern.captures(line.as_str()) {
-                titles_info.push(TitleInfo {
-                    line_number: line_number,
-                    title: String::from(&capture["title"]),
-                    level: *&capture["level"].chars().filter(|ch| *ch == '#').count(),
-                });
-            }
+    let mut titles: LinkedList<String> = LinkedList::new();
+    titles.push_back(format!("# {title_message}"));
+    let mut body: LinkedList<String> = LinkedList::new();
+    for line in reader.lines() {
+        let line = line.unwrap();
+        if let Some(capture) = reg_title_pattern.captures(line.as_str()) {
+            let title = &capture["title"];
+            let tab_level = *&capture["level"].chars().filter(|ch| *ch == '#').count() - 1;
+            let tab_indent = " ".repeat(tab_space_size.into());
+            let indent = tab_indent.repeat(tab_level);
+            titles.push_back(format!("{indent}* {title}"));
         }
+        body.push_back(line);
     }
 
-    return titles_info;
+    for title in titles {
+        target.write(title.as_bytes()).unwrap();
+        target.write(b"\n").unwrap();
+    }
+
+    target.write(b"\n").unwrap();
+
+    for title in body {
+        target.write(title.as_bytes()).unwrap();
+        target.write(b"\n").unwrap();
+    }
 }
+
+fn add_hash_to_filename(path: &Path) -> Option<PathBuf> {
+    // Step 1: Extract file name and extension
+    let file_stem = path.file_stem()?.to_str()?;
+    let extension = path.extension().and_then(|ext| ext.to_str());
+
+    // Step 2: Generate a hash from the file name
+    let hash = {
+        let mut hasher = Sha256::new();
+        hasher.update(file_stem);
+        format!("{:x}", hasher.finalize())
+    };
+
+    // Step 3: Construct the new file name
+    let new_file_name = match extension {
+        Some(ext) => format!("{}_{}.{}", file_stem, hash, ext),
+        None => format!("{}_{}", file_stem, hash),
+    };
+
+    // Step 4: Update the PathBuf with the new file name
+    let mut new_path = path.to_path_buf();
+    new_path.set_file_name(new_file_name);
+
+    Some(new_path)
+}
+
+// TitleFormer
+//  format = detect → change → insert
