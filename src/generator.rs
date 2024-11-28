@@ -2,11 +2,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::{
-    option::Option,
     collections::LinkedList,
     error::Error,
-    fs::OpenOptions,
+    fs::{self, OpenOptions},
     io::{BufRead, BufReader, Write},
+    option::Option,
     path::{Path, PathBuf},
 };
 
@@ -112,6 +112,23 @@ impl MarkDownTitleGenerator {
     }
 }
 
+impl Drop for MarkDownTitleGenerator {
+    fn drop(&mut self) {
+        if self.temporary_file_path.exists() {
+            fs::remove_file(&self.temporary_file_path).unwrap();
+        }
+    }
+}
+
+/// Adds a SHA-256 hash of the file name to the file name itself, preserving the extension if present.
+///
+/// # Arguments
+///
+/// * `path` - A reference to a `Path` representing the original file path.
+///
+/// # Returns
+///
+/// * `Option<PathBuf>` - A new `PathBuf` with the modified file name containing the hash, or `None` if the file name or extension cannot be converted to a string.
 fn add_hash_to_filename(path: &Path) -> Option<PathBuf> {
     // Step 1: Extract file name and extension
     let file_stem = path.file_stem()?.to_str()?;
@@ -135,4 +152,86 @@ fn add_hash_to_filename(path: &Path) -> Option<PathBuf> {
     new_path.set_file_name(new_file_name);
 
     Some(new_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use diff;
+    use std::fs;
+    use std::path::Path;
+
+    fn compare_content_of_two_files(file_1: &Path, file_2: &Path) -> Result<bool, Box<dyn Error>> {
+        let expected_content = fs::read_to_string(file_1)?;
+        let expected_content = expected_content.replace("\r\n", "\n");
+        let expected_content = expected_content.as_str();
+
+        let real_content = fs::read_to_string(file_2)?;
+        let real_content = real_content.replace("\r\n", "\n");
+        let real_content = real_content.as_str();
+
+        let mut is_diff_detected = false;
+        for diff in diff::chars(expected_content, real_content) {
+            match diff {
+                // Character in string1 but not in string2
+                diff::Result::Left(l) => {
+                    println!("-{:?}", l);
+                    is_diff_detected = true;
+                }
+                // Character in string2 but not in string1
+                diff::Result::Right(r) => {
+                    println!("+{:?}", r);
+                    is_diff_detected = true;
+                }
+                // Ignore characters present in both strings
+                diff::Result::Both(_, _) => (),
+            }
+        }
+
+        Ok(is_diff_detected)
+    }
+
+    #[test]
+    fn test_0_simple() -> Result<(), Box<dyn Error>> {
+        let target_file = Path::new("test_files/test-0_simple (target).md");
+        let expected_result_file = Path::new("test_files/test-0_simple (result).md");
+        let real_result_file = Path::new("test_files/temp_result.md");
+
+        MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
+            .generate()?
+            .finish(&real_result_file)?;
+
+        assert!(
+            !compare_content_of_two_files(&expected_result_file, &real_result_file)?,
+            "`{:?}` content is not equal of `{:?}` content",
+            expected_result_file,
+            real_result_file
+        );
+
+        // Clean up the temporary file
+        fs::remove_file(real_result_file)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_1_complex() -> Result<(), Box<dyn Error>> {
+        let target_file = Path::new("test_files/test-1_complex (target).md");
+        let expected_result_file = Path::new("test_files/test-1_complex (result).md");
+        let real_result_file = Path::new("test_files/temp_result.md");
+
+        MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
+            .generate()?
+            .finish(&real_result_file)?;
+
+        assert!(
+            !compare_content_of_two_files(&expected_result_file, &real_result_file)?,
+            "`{:?}` content is not equal of `{:?}` content",
+            expected_result_file,
+            real_result_file
+        );
+
+        // Clean up the temporary file
+        fs::remove_file(real_result_file)?;
+        Ok(())
+    }
 }

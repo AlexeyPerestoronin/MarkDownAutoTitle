@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "MarkDownAutoTitle"
-version = "0.1.0"
-dependencies = [
- "clap",
- "once_cell",
- "regex",
- "sha2",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -68,6 +58,17 @@ checksum = "2109dbce0e72be3ec00bed26e6a7479ca384ad226efdd66db8fa2e3a38c83125"
 dependencies = [
  "anstyle",
  "windows-sys",
+]
+
+[[package]]
+name = "auto_title"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "diff",
+ "once_cell",
+ "regex",
+ "sha2",
 ]
 
 [[package]]
@@ -149,6 +150,12 @@ dependencies = [
  "generic-array",
  "typenum",
 ]
+
+[[package]]
+name = "diff"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
 
 [[package]]
 name = "digest"

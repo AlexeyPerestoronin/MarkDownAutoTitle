@@ -1,10 +1,13 @@
 [package]
-name = "MarkDownAutoTitle"
-version = "0.1.0"
+name = "auto_title"
+description = "Command Line Tool for auto-adding title to mark-down file"
+version = "1.0.0"
 edition = "2021"
+authors = ["Alexey.Perestoronin@yandex.ru"]
 
 [dependencies]
 clap = { version = "4.5.21", features = ["derive"] }
 regex = "1.11.1"
 sha2 = "0.10"
 once_cell = "1.17"
+diff = "0.1"
