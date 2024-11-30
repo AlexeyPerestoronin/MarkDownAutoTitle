@@ -96,31 +96,27 @@ impl MarkDownTitleGenerator {
     }
 
     pub fn finish(&self, finish_file: &Path) -> Result<(), Box<dyn Error>> {
-        {
-            // Step-1: open target markdown file
-            let mut source = OpenOptions::new()
-                .read(false)
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(finish_file)?;
+        // Step-1: open target markdown file
+        let mut source = OpenOptions::new()
+            .read(false)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(finish_file)?;
 
-            // Step-2: open (create) temporary markdown file
-            let temporary = OpenOptions::new()
-                .read(true)
-                .write(false)
-                .create(false)
-                .truncate(false)
-                .open(&self.temporary_file_path)?;
+        // Step-2: open (create) temporary markdown file
+        let temporary = OpenOptions::new()
+            .read(true)
+            .write(false)
+            .create(false)
+            .truncate(false)
+            .open(&self.temporary_file_path)?;
 
-            // Step-3: replace content of source file by content of target (with title)
-            for line in BufReader::new(temporary).lines() {
-                writeln!(source, "{}", line?)?;
-            }
+        // Step-3: replace content of source file by content of target (with title)
+        for line in BufReader::new(temporary).lines() {
+            writeln!(source, "{}", line?)?;
         }
 
-        // Step-4: removing temporary file
-        std::fs::remove_file(&self.temporary_file_path)?;
         Ok(())
     }
 }
@@ -207,8 +203,8 @@ mod tests {
     #[test]
     fn test_0_simple() -> Result<(), Box<dyn Error>> {
         let target_file = Path::new("test_files/test-0_simple (target).md");
-        let expected_result_file = Path::new("test_files/test-0_simple (result).md");
-        let real_result_file = Path::new("test_files/temp_result.md");
+        let expected_result_file = Path::new("test_files/test-0_simple (expected).md");
+        let real_result_file = Path::new("test_files/test-0_simple (result).md");
 
         MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
             .generate(false)?
@@ -221,16 +217,15 @@ mod tests {
             real_result_file
         );
 
-        // Clean up the temporary file
-        fs::remove_file(real_result_file)?;
+        std::fs::remove_file(&real_result_file)?;
         Ok(())
     }
 
     #[test]
     fn test_1_complex() -> Result<(), Box<dyn Error>> {
         let target_file = Path::new("test_files/test-1_complex (target).md");
-        let expected_result_file = Path::new("test_files/test-1_complex (result).md");
-        let real_result_file = Path::new("test_files/temp_result.md");
+        let expected_result_file = Path::new("test_files/test-1_complex (expected).md");
+        let real_result_file = Path::new("test_files/test-1_complex (result).md");
 
         MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
             .generate(false)?
@@ -243,16 +238,15 @@ mod tests {
             real_result_file
         );
 
-        // Clean up the temporary file
-        fs::remove_file(real_result_file)?;
+        std::fs::remove_file(&real_result_file)?;
         Ok(())
     }
 
     #[test]
     fn test_2_with_title() -> Result<(), Box<dyn Error>> {
         let target_file = Path::new("test_files/test-2_with_title (target).md");
-        let expected_result_file = Path::new("test_files/test-2_with_title (result).md");
-        let real_result_file = Path::new("test_files/temp_result.md");
+        let expected_result_file = Path::new("test_files/test-2_with_title (expected).md");
+        let real_result_file = Path::new("test_files/test-2_with_title (result).md");
 
         MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
             .generate(true)?
@@ -265,8 +259,7 @@ mod tests {
             real_result_file
         );
 
-        // Clean up the temporary file
-        fs::remove_file(real_result_file)?;
+        std::fs::remove_file(&real_result_file)?;
         Ok(())
     }
 }
