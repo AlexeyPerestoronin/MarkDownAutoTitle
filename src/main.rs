@@ -9,7 +9,7 @@ mod generator;
 #[derive(Parser, Debug)]
 #[command(
     version = "1.0.0.0",
-    about = "Command Line Tool for auto-adding title to mark-down file"
+    about = "Command Line Tool for auto-adding title to MarkDown file"
 )]
 struct Args {
     /// Target markdown file for title addition
