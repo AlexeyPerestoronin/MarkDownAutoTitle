@@ -10,8 +10,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/MarkDownAutoTitle.exe",
             "args": [
-                "--help"
+                "--file-name",
+                "C:/GitRepos/MarkDownAutoTitle/test_files/simple/target.md"
             ],
+            "preLaunchTask": "rust: cargo build"
         }
     ]
 }
