@@ -31,7 +31,7 @@ impl MarkDownTitleGenerator {
         })
     }
 
-    pub fn generate(&self) -> Result<&Self, Box<dyn Error>> {
+    pub fn generate(&self, skip_first_title: bool) -> Result<&Self, Box<dyn Error>> {
         static TITLE_REGEX_DETECT_PATTERN: Lazy<Regex> =
             Lazy::new(|| Regex::new(r"(?<level>#+)\s+(?<title>.+)").unwrap());
 
@@ -55,17 +55,30 @@ impl MarkDownTitleGenerator {
         let mut titles: LinkedList<String> = LinkedList::new();
         titles.push_back(format!("# {}", self.title_message));
         let mut body: LinkedList<String> = LinkedList::new();
+        let mut inside_first_title = false;
+        let mut first_title_skipped = !skip_first_title;
 
         for line in BufReader::new(source).lines() {
             let line = line?;
             if let Some(capture) = TITLE_REGEX_DETECT_PATTERN.captures(&line) {
+                if !first_title_skipped {
+                    // Skip the first title and its content
+                    inside_first_title = true;
+                    first_title_skipped = true;
+                    continue;
+                } else {
+                    // If we encounter another title, we are no longer inside the first title's section
+                    inside_first_title = false;
+                }
                 let title = &capture["title"];
                 let tab_level = capture["level"].chars().count() - 1;
                 let tab_indent = " ".repeat(self.tab_space_size.into());
                 let indent = tab_indent.repeat(tab_level);
                 titles.push_back(format!("{}* {}", indent, title));
             }
-            body.push_back(line);
+            if !inside_first_title {
+                body.push_back(line);
+            }
         }
 
         // Step-3: save content to temporary file
@@ -198,7 +211,7 @@ mod tests {
         let real_result_file = Path::new("test_files/temp_result.md");
 
         MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
-            .generate()?
+            .generate(false)?
             .finish(&real_result_file)?;
 
         assert!(
@@ -220,7 +233,29 @@ mod tests {
         let real_result_file = Path::new("test_files/temp_result.md");
 
         MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
-            .generate()?
+            .generate(false)?
+            .finish(&real_result_file)?;
+
+        assert!(
+            !compare_content_of_two_files(&expected_result_file, &real_result_file)?,
+            "`{:?}` content is not equal of `{:?}` content",
+            expected_result_file,
+            real_result_file
+        );
+
+        // Clean up the temporary file
+        fs::remove_file(real_result_file)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_2_with_title() -> Result<(), Box<dyn Error>> {
+        let target_file = Path::new("test_files/test-2_with_title (target).md");
+        let expected_result_file = Path::new("test_files/test-2_with_title (result).md");
+        let real_result_file = Path::new("test_files/temp_result.md");
+
+        MarkDownTitleGenerator::new(target_file, "Auto-Title:".to_string(), 4)?
+            .generate(true)?
             .finish(&real_result_file)?;
 
         assert!(

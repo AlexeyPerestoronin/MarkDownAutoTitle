@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::{
     error::Error,
-    path::{PathBuf},
+    path::PathBuf,
 };
 
 mod generator;
@@ -27,6 +27,10 @@ struct Args {
     /// Result markdown file (with generated title) (if not defined, equals the target)
     #[arg(long)]
     result_file: Option<PathBuf>,
+
+    /// Whether to skip first title (generali, the first title is an existent title which should be skipped)
+    #[arg(long, default_value_t = false)]
+    skip_first_title: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -37,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         arguments.title_message,
         arguments.tab_space_size,
     )?
-    .generate()?
+    .generate(arguments.skip_first_title)?
     .finish(&arguments.result_file.unwrap_or(arguments.file))?;
 
     Ok(())
